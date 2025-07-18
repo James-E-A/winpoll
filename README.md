@@ -11,11 +11,20 @@ Implementation of `select.poll` on Microsoft Windows.
 
 ```python
 try:
-  from select import POLLIN, POLLOUT, poll
-except ImportError:
-  # https://github.com/python/cpython/issues/60711
-  from winpoll import POLLIN, POLLOUT, wsapoll as poll
+    from select import (
+        POLLIN, POLLOUT, POLLERR, POLLHUP, POLLNVAL,
+        poll
+    )
 
+except ImportError:
+    # https://github.com/python/cpython/issues/60711
+    from winpoll import (
+        POLLIN, POLLOUT, POLLERR, POLLHUP, POLLNVAL,
+        wsapoll as poll
+    )
+```
+
+```python
 p = poll()
 
 p.register(sock1, POLLIN)
@@ -24,10 +33,10 @@ p.unregister(sock1)
 
 for sock, events in p.poll(timeout=3):
     print(f"Socket {sock} is ready with {events}")
-
-# like select.poll objects, winpoll.wsapoll objects acquire no resources
-# thus have no cleanup requirement besides plain garbage collection
 ```
+
+Like `select.poll`, `winpoll.wsapoll` objects acquire no special resources, thus
+have no cleanup requirement (besides plain garbage collection).
 
 
 # Limitations / Bugs
