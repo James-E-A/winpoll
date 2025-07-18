@@ -58,7 +58,7 @@ class wsapoll:
         # object "owns" the memory, even after a call to resize. There is no way
         # to robustly resize ctypes.Array instances at this time, so we are
         # just keeping the original buffer around, in addition to impl, which
-        # is a subordinate "view" of only its active slots.
+        # is a subordinate "view" of only the buffer's allocated slots.
         # https://github.com/python/cpython/issues/65527
         # https://docs.python.org/3/library/ctypes.html#ctypes._CData._b_needsfree_
         '__buffer',
