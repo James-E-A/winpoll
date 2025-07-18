@@ -59,8 +59,9 @@ class wsapoll:
     ]
 
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
-        self.__buffer = buf = create_string_buffer(sizeof(WSAPOLLFD * sizehint))
-        self.__impl = (WSAPOLLFD * 0).from_buffer(buf)
+        impl_t = WSAPOLLFD * 0
+        self.__buffer = buf = (impl_t._type_ * sizehint)()
+        self.__impl = impl_t.from_buffer(buf)
         self.__fd_to_key = {}
 
     def __repr__(self):
