@@ -230,3 +230,12 @@ class wsapoll:
         del self.__fd_to_key[fd]
 
         if __debug__: self._check()
+
+    def __getstate__(self):
+        fd_to_key_getitem = self.__fd_to_key.__getitem__
+        return {fd_to_key_getitem(fd): eventmask for fd, eventmask in ((slot.fd, slot.events) for slot in self.__impl)}
+
+    def __setstate__(self, state):
+        self.__init__(sizehint=len(state))
+        for fileobj, eventmask in state.items():
+            self.register(fileobj, eventmask)
