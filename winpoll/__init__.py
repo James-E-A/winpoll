@@ -64,7 +64,7 @@ class wsapoll:
         self.__fd_to_key = {}
 
     def __repr__(self):
-        return f"<{__name__}.{self.__class__.__name__} {{{', '.join(f'{fd}: {repr_flags(events, POLL_FLAGS_FOR_REPR)}' for fd, events in ((slot.fd, slot.events) for slot in self.__impl ) )}}}>"
+        return f"<{__name__}.{self.__class__.__name__} {{{', '.join(f'{fd}: {repr_flags(events, POLL_FLAGS_FOR_REPR)}' for fd, events in ((slot._fd, slot.events) for slot in self.__impl ) )}}}>"
 
     def _check(self):
         set_1 = set(slot.fd for slot in self.__impl)
