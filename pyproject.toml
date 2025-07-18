@@ -1,6 +1,6 @@
 [project]
 name = "winpoll"
-version = "0.20287.3"
+version = "0.20287.4"
 requires-python = ">= 3.6"
 description = "Implementation of `select.poll` on Microsoft Windows."
 readme = "README.md"
