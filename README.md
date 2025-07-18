@@ -25,8 +25,8 @@ p.unregister(sock1)
 for sock, events in p.poll(timeout=3):
     print(f"Socket {sock} is ready with {events}")
 
-# wsapoll objects acquire no resources and have no cleanup requirement
-# besides plain garbage collection
+# like select.poll objects, winpoll.wsapoll objects acquire no resources
+# thus have no cleanup requirement besides plain garbage collection
 ```
 
 
