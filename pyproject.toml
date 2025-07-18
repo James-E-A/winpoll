@@ -9,6 +9,7 @@ keywords = ["poll", "select.poll", "WSAPoll", "Windows polyfill", "Windows ponyf
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Networking",
 ]
