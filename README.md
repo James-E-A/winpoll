@@ -36,7 +36,7 @@ for sock, events in p.poll(timeout=3):
 
   * Last affected OS EOL: [April 8, 2014](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-xp-office-exchange-2003-end-of-support)
 
-- Outbound TCP connections don't correctly report failure-to-connect (`(POLLHUP | POLLERR)`) before Windows 10 Version 2004 (OS build 19041).
+- Outbound TCP connections don't correctly report failure-to-connect (`(POLLHUP | POLLERR | POLLWRNORM)`) before Windows 10 Version 2004 (OS build 19041).
 
   * Last affected OS EOL: [May 10, 2022](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-10-1909-enterprise-education-eos)
 
