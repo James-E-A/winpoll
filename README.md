@@ -39,3 +39,27 @@ for sock, events in p.poll(timeout=3):
 - Outbound TCP connections don't correctly report failure-to-connect (`(POLLHUP | POLLERR)`) before Windows 10 Version 2004 (OS build 19041).
 
   * Last affected OS EOL: [May 10, 2022](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-10-1909-enterprise-education-eos)
+
+
+# Installation
+
+## Command-line
+
+```cmd
+pip install "git+https://github.com/James-E-A/winpoll.git"
+```
+
+## `requirements.txt`
+
+```ini
+winpoll @ git+https://github.com/James-E-A/winpoll
+```
+
+## `pyproject.toml`
+
+```toml
+[project]
+dependencies = [
+  "winpoll @ git+https://github.com/James-E-A/winpoll",
+]
+```
