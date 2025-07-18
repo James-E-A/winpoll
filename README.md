@@ -1,4 +1,4 @@
-Implementation of `select.poll` for Windows.
+Implementation of `select.poll` on Microsoft Windows.
 
 - Pure Python; no C extensions (uses `ctypes.windll`)
 - Drop-in-compatible API

@@ -1,9 +1,11 @@
 [project]
 name = "winpoll"
-version = "0.20287.1"
+version = "0.20287.2"
 requires-python = ">= 3.6"
+description = "Implementation of `select.poll` on Microsoft Windows."
 readme = "README.md"
 license = "BSD-3-Clause"
+keywords = ["poll", "select.poll", "WSAPoll", "Windows polyfill", "Windows ponyfill"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
