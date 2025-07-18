@@ -2,6 +2,7 @@
 name = "winpoll"
 version = "0.20287.0"
 requires-python = ">= 3.6"
+readme = "README.md"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -12,6 +13,3 @@ classifiers = [
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = ["setuptools"]
-
-[tool.setuptools.packages.find]
-include = ["winpoll", "winpoll._*"]

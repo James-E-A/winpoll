@@ -1,6 +1,6 @@
 Implementation of `select.poll` for Windows.
 
-- Pure Python
+- Pure Python; no C extensions (uses `ctypes.windll`)
 - Drop-in-compatible API
 - Clean "ponyfill"; no monkeypatching
 - No dependencies (besides Windows Vista or newer)
@@ -46,13 +46,13 @@ for sock, events in p.poll(timeout=3):
 ## Command-line
 
 ```cmd
-pip install "git+https://github.com/James-E-A/winpoll.git"
+pip install winpoll
 ```
 
 ## `requirements.txt`
 
 ```ini
-winpoll @ git+https://github.com/James-E-A/winpoll
+winpoll
 ```
 
 ## `pyproject.toml`
@@ -60,6 +60,7 @@ winpoll @ git+https://github.com/James-E-A/winpoll
 ```toml
 [project]
 dependencies = [
-  "winpoll @ git+https://github.com/James-E-A/winpoll",
+  ...,
+  "winpoll",
 ]
 ```
