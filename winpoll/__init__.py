@@ -1,6 +1,9 @@
 from ctypes import WinError, byref, create_string_buffer, memmove, resize, sizeof
 from ctypes import windll
 from ctypes.wintypes import INT, LPVOID, ULONG
+import logging
+from socket import SOCK_STREAM, socket as socket_
+import sys
 from time import monotonic_ns
 
 from ._util.select_extra import *
@@ -29,6 +32,9 @@ __all__ = [
     'POLLWRNORM',
     'wsapoll',
 ]
+
+IS_PRE_19041 = sys.getwindowsversion() < (10, 0, 19041)
+_POLL_DISCONNECTION = POLLHUP | POLLERR | POLLWRNORM
 
 
 _WSAPoll = windll.Ws2_32['WSAPoll']
@@ -73,7 +79,21 @@ class wsapoll:
         if set_1 != set_2:
             raise AssertionError(f"internal inconsistency: descriptors {set_2} were registered, but only {set_1} were present in the struct")
 
+    def __check_maybe_affected(self):
+        fd_to_key_get = self.__fd_to_key.get
+        return any(
+            (
+                isinstance(fileobj, socket_)
+                and (fileobj.type & SOCK_STREAM) != 0 # compare as bitmask for Python < 3.7
+                and eventmask == _POLL_DISCONNECTION
+            )
+            for fileobj, eventmask in ((fd_to_key_get(slot.fd), slot.events) for slot in self.__impl)
+        )
+
     def poll(self, timeout=None):
+        if (not IS_PRE_19041) and (timeout is None) and self.__check_maybe_affected():
+            logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.")
+
         timeout_ms = uptruncate(timeout * 1000) if timeout is not None else -1
         return self._poll(timeout_ms)
 
