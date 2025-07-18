@@ -46,13 +46,13 @@ for sock, events in p.poll(timeout=3):
 ## Command-line
 
 ```cmd
-pip install winpoll
+pip install "winpoll ; sys_platform == 'win32'"
 ```
 
 ## `requirements.txt`
 
 ```ini
-winpoll
+winpoll ; sys_platform == 'win32'
 ```
 
 ## `pyproject.toml`
@@ -61,6 +61,6 @@ winpoll
 [project]
 dependencies = [
   ...,
-  "winpoll",
+  "winpoll ; sys_platform == 'win32'",
 ]
 ```
