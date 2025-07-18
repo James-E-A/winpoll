@@ -177,6 +177,13 @@ class wsapoll:
 
         if __debug__: self._check()
 
+    def _clear(self):
+        impl_t = self.__impl._type_ * 0
+        self.__impl = impl_t.from_buffer(self.__buffer)
+        self.__fd_to_key.clear()
+
+        if __debug__: self._check()
+
     def unregister(self, fileobj):
         fd = getfd(fileobj)
         impl = self.__impl
