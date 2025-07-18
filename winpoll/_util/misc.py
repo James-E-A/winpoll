@@ -1,4 +1,5 @@
 from math import ceil, floor
+from operator import index
 
 from .select_extra import *
 

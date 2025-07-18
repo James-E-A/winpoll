@@ -3,7 +3,18 @@ from ctypes import windll
 from ctypes.wintypes import INT, LPVOID, ULONG
 from time import monotonic_ns
 
-from ._util import *
+from ._util.select_extra import *
+from ._util import (
+    POLL_FLAGS_FOR_REPR,
+    SOCKET_ERROR,
+    WSAEINTR,
+    WSAPOLLFD,
+    getallocationgranularity,
+    getfd,
+    repr_flags,
+    smallest_multiple_atleast,
+    uptruncate,
+)
 
 __all__ = [
     'POLLERR',
@@ -36,7 +47,15 @@ class wsapoll:
     __slots__ = [
         '__impl',
         '__fd_to_key',
-        '__buffer', # have to track this separately to avoid freaking ctypes out on the second and subsequent calls to resize
+        # We have to track the buffer separately to avoid freaking ctypes out
+        # if resize is called more than once; only the originally allocated
+        # object "owns" the memory, even after a call to resize. There is no way
+        # to robustly resize ctypes.Array instances at this time, so we are
+        # just keeping the original buffer around, in addition to impl, which
+        # is a subordinate "view" of only its active slots.
+        # https://github.com/python/cpython/issues/65527
+        # https://docs.python.org/3/library/ctypes.html#ctypes._CData._b_needsfree_
+        '__buffer',
     ]
 
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
@@ -109,13 +128,13 @@ class wsapoll:
                 # 2A. Found the slot to update this existing fd registration
                 break
 
+        # 2. If none found, bump-alloc new slot by updating array metadata
         else:
-            # 2B. No existing slot found; bump-alloc new slot
             buf = self.__buffer
             impl_t = impl._type_ * (len(impl) + 1)
 
             if sizeof(impl_t) > sizeof(buf):
-                # ...But first, purchase moar RAM
+                # ...But first, actually purchase moar RAM
                 resize(
                     buf,
                     smallest_multiple_atleast(
@@ -130,9 +149,11 @@ class wsapoll:
             self.__impl = impl = impl_t.from_buffer(buf)
             slot = impl[-1]
 
-        # 4. Populate slot & register this fileobj
+        # 3. Set slot contents
         slot.fd = fd
         slot.events = eventmask
+
+        # 4. Update (remaining) registration metadata
         fd_to_key[fd] = fileobj
 
         if __debug__: self._check()
@@ -140,13 +161,17 @@ class wsapoll:
     def modify(self, fileobj, eventmask):
         fd = getfd(fileobj)
 
+        # 1. Find slot for this fd
         for slot in self.__impl:
             if slot.fd == fd:
                 break
         else:
             raise KeyError(f"{fileobj!r} is not registered")
 
+        # 2. Update slot contents
         slot.events = eventmask
+
+        # 3. Update registration metadata
         self.__fd_to_key[fd] = fileobj
 
         if __debug__: self._check()
@@ -158,20 +183,20 @@ class wsapoll:
         # 1. Find slot for this fd
         for (i, slot) in enumerate(impl):
             if slot.fd == fd:
-                slots_after = len(impl) - i - 1
+                count_after = len(impl) - i - 1
                 break
         else:
             raise KeyError(f"{fileobj!r} is not registered")
 
-        # 2. If deleting a non-terminal element, compact this array
-        if slots_after > 0:
+        # 2. Update slot contents, if applicable
+        if count_after > 0:
             memmove(
                 byref(slot),
-                byref(slot, sizeof(slot) * 1),
-                sizeof(slot) * slots_after
+                byref(slot, sizeof(slot)),
+                sizeof(slot) * count_after
             )
 
-        # 3. Update metadata to reflect array contents
+        # 3. Update registration metadata
         impl_t = impl._type_ * (len(impl) - 1)
         self.__impl = impl_t.from_buffer(self.__buffer)
         del self.__fd_to_key[fd]
