@@ -69,6 +69,8 @@ class wsapoll:
         # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L661-L666
         # https://github.com/pypy/pypy/blob/release-pypy3.11-v7.3.18/pypy/module/select/interp_select.py#L87-L88
         '__lock',
+        # https://docs.python.org/3/library/weakref.html#:~:text=When%20__slots__%20are%20defined%20for%20a%20given%20type,declaration%2E
+        '__weakref__',
     ]
 
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
