@@ -1,6 +1,7 @@
 from ctypes import WinError, byref, create_string_buffer, memmove, resize, sizeof
 from ctypes import windll
 from ctypes.wintypes import INT, LPVOID, ULONG
+from errno import ENOENT
 import logging
 from socket import SOCK_STREAM, socket as socket_
 import sys
@@ -51,8 +52,9 @@ _WSAGetLastError = windll.Ws2_32['WSAGetLastError']
 
 class wsapoll:
     __slots__ = [
+        '_registered',
         '__impl',
-        '__fd_to_key',
+        '__impl_uptodate',
         # We have to track the buffer separately to avoid freaking ctypes out
         # if resize is called more than once; only the originally allocated
         # object "owns" the memory, even after a call to resize. There is no way
@@ -65,41 +67,36 @@ class wsapoll:
     ]
 
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
+        self._registered = {}
         impl_t = WSAPOLLFD * 0
-        self.__buffer = buf = (impl_t._type_ * sizehint)()
+        buf = (impl_t._type_ * sizehint)()
         self.__impl = impl_t.from_buffer(buf)
-        self.__fd_to_key = {}
+        self.__buffer = buf
 
     def __repr__(self):
-        return f"<{__name__}.{self.__class__.__name__} {{{', '.join(f'{fd}: {repr_flags(events, POLL_FLAGS_FOR_REPR)}' for fd, events in ((slot._fd, slot.events) for slot in self.__impl ) )}}}>"
-
-    def _check(self):
-        set_1 = set(slot.fd for slot in self.__impl)
-        set_2 = set(self.__fd_to_key.keys())
-        if set_1 != set_2:
-            raise AssertionError(f"internal inconsistency: descriptors {set_2} were registered, but only {set_1} were present in the struct")
+        return f"<{__name__}.{self.__class__.__name__} {self._registered!r}>"
 
     def __check_maybe_affected(self):
-        fd_to_key_get = self.__fd_to_key.get
         return any(
             (
-                isinstance(fileobj, socket_)
-                and (fileobj.type & SOCK_STREAM) != 0 # compare as bitmask for Python < 3.7
+                fd >= 0
                 and eventmask == _POLL_DISCONNECTION
             )
-            for fileobj, eventmask in ((fd_to_key_get(slot.fd), slot.events) for slot in self.__impl)
+            for fd, eventmask in self._registered.items()
         )
 
     def poll(self, timeout=None):
         if (not IS_PRE_19041) and (timeout is None) and self.__check_maybe_affected():
-            logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.")
+            logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.\nFor more information, see https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/")
 
         timeout_ms = uptruncate(timeout * 1000) if timeout is not None else -1
         return self._poll(timeout_ms)
 
     def _poll(self, timeout=-1):
+        if not self.__impl_uptodate:
+            self.__update_impl()
+
         impl = self.__impl
-        fd_to_key = self.__fd_to_key
         impl_len = len(impl)
 
         # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L661-L666
@@ -127,115 +124,72 @@ class wsapoll:
 
                 raise WinError(errno)
 
-            assert 0 <= ret <= len(fd_to_key)
+            assert 0 <= ret <= impl_len
             break
 
-        fd_to_key_getitem = fd_to_key.__getitem__
-
         return [
-            (fd_to_key_getitem(fd), events)
+            (fd, events)
             for fd, events in ((slot.fd, slot.revents) for slot in impl)
-                if events != 0
+                if events
         ]
 
-    def register(self, fileobj, eventmask=(POLLIN | POLLPRI | POLLOUT)):
-        fd = getfd(fileobj)
+    def __update_impl(self):
+        registered = self._registered
         impl = self.__impl
-        fd_to_key = self.__fd_to_key
+        buf = self.__buffer
 
-        # 1. Find existing slot for this FD
-        for slot in impl:
-            if slot.fd == fd:
-                # 2A. Found the slot to update this existing fd registration
-                break
+        fds = len(registered)
+        impl_t = impl._type_ * fds
 
-        # 2. If none found, bump-alloc new slot by updating array metadata
-        else:
-            buf = self.__buffer
-            impl_t = impl._type_ * (len(impl) + 1)
-
-            if sizeof(impl_t) > sizeof(buf):
-                # ...But first, actually purchase moar RAM
-                resize(
-                    buf,
-                    smallest_multiple_atleast(
-                        getallocationgranularity(),
-                        max(
-                            sizeof(impl._type_ * (len(impl) * 2)),
-                            sizeof(impl_t)
-                        )
+        if sizeof(impl_t) > sizeof(buf):
+            # ...But first, actually purchase moar RAM
+            resize(
+                buf,
+                smallest_multiple_atleast(
+                    getallocationgranularity(),
+                    max(
+                        sizeof(impl._type_ * (len(impl) * 2)),
+                        sizeof(impl_t)
                     )
                 )
+            )
 
-            self.__impl = impl = impl_t.from_buffer(buf)
-            slot = impl[-1]
+        self.__impl = impl = impl_t.from_buffer(self.__buffer)
 
-        # 3. Set slot contents
-        slot.fd = fd
-        slot.events = eventmask
+        for slot, (fd, eventmask) in zip(impl, registered.items()):
+            slot.fd = fd
+            slot.events = eventmask
 
-        # 4. Update (remaining) registration metadata
-        fd_to_key[fd] = fileobj
+        self.__impl_uptodate = True
 
-        if __debug__: self._check()
-
-    def modify(self, fileobj, eventmask):
-        fd = getfd(fileobj)
-
-        # 1. Find slot for this fd
-        for slot in self.__impl:
-            if slot.fd == fd:
-                break
-        else:
-            raise KeyError(f"{fileobj!r} is not registered")
-
-        # 2. Update slot contents
-        slot.events = eventmask
-
-        # 3. Update registration metadata
-        self.__fd_to_key[fd] = fileobj
-
-        if __debug__: self._check()
-
-    def _clear(self):
-        impl_t = self.__impl._type_ * 0
-        self.__impl = impl_t.from_buffer(self.__buffer)
-        self.__fd_to_key.clear()
-
-        if __debug__: self._check()
+    def register(self, fileobj, eventmask=(POLLIN | POLLPRI | POLLOUT)):
+        self._registered[getfd(fileobj)] = eventmask
 
     def unregister(self, fileobj):
         fd = getfd(fileobj)
-        impl = self.__impl
+        try:
+            del self._registered[fd]
+        except KeyError:
+            raise KeyError(f"{fileobj!r} is not registered") from None
 
-        # 1. Find slot for this fd
-        for (i, slot) in enumerate(impl):
-            if slot.fd == fd:
-                count_after = len(impl) - i - 1
-                break
+    def modify(self, fileobj, eventmask):
+        fd = getfd(fileobj)
+        try:
+            self._registered[fd]
+        except KeyError:
+            # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L548
+            raise OSError(ENOENT, f"{fileobj!r} is not registered") from None
         else:
-            raise KeyError(f"{fileobj!r} is not registered")
+            self._registered[fd] = eventmask
 
-        # 2. Update slot contents, if applicable
-        if count_after > 0:
-            memmove(
-                byref(slot),
-                byref(slot, sizeof(slot)),
-                sizeof(slot) * count_after
-            )
-
-        # 3. Update registration metadata
-        impl_t = impl._type_ * (len(impl) - 1)
-        self.__impl = impl_t.from_buffer(self.__buffer)
-        del self.__fd_to_key[fd]
-
-        if __debug__: self._check()
+    def _clear(self):
+        self._registered.clear()
+        self.__update_impl()
 
     def __getstate__(self):
-        fd_to_key_getitem = self.__fd_to_key.__getitem__
-        return {fd_to_key_getitem(fd): eventmask for fd, eventmask in ((slot.fd, slot.events) for slot in self.__impl)}
+        return self._registered
 
     def __setstate__(self, state):
         self.__init__(sizehint=len(state))
-        for fileobj, eventmask in state.items():
-            self.register(fileobj, eventmask)
+        self._registered.update(state)
+        self.__update_impl()
