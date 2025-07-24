@@ -69,9 +69,9 @@ class wsapoll:
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
         self._registered = {}
         impl_t = WSAPOLLFD * 0
-        buf = (impl_t._type_ * sizehint)()
+        self.__buffer = buf = (impl_t._type_ * sizehint)()
         self.__impl = impl_t.from_buffer(buf)
-        self.__buffer = buf
+        self.__impl_uptodate = True
 
     def __repr__(self):
         return f"<{__name__}.{self.__class__.__name__} {self._registered!r}>"
