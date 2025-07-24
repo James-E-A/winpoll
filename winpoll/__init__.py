@@ -5,6 +5,7 @@ from errno import ENOENT
 import logging
 from socket import SOCK_STREAM, socket as socket_
 import sys
+from threading import Lock
 from time import monotonic_ns
 
 from ._util.select_extra import *
@@ -13,6 +14,7 @@ from ._util import (
     SOCKET_ERROR,
     WSAEINTR,
     WSAPOLLFD,
+    enter_or_die,
     getallocationgranularity,
     getfd,
     repr_flags,
@@ -64,6 +66,9 @@ class wsapoll:
         # https://github.com/python/cpython/issues/65527
         # https://docs.python.org/3/library/ctypes.html#ctypes._CData._b_needsfree_
         '__buffer',
+        # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L661-L666
+        # https://github.com/pypy/pypy/blob/release-pypy3.11-v7.3.18/pypy/module/select/interp_select.py#L87-L88
+        '__lock',
     ]
 
     def __init__(self, sizehint=max(getallocationgranularity() // sizeof(WSAPOLLFD), 1)):
@@ -72,6 +77,7 @@ class wsapoll:
         self.__buffer = buf = (impl_t._type_ * sizehint)()
         self.__impl = impl_t.from_buffer(buf)
         self.__impl_uptodate = True
+        self.__lock = Lock()
 
     def __repr__(self):
         return f"<{__name__}.{self.__class__.__name__} {self._registered!r}>"
@@ -86,16 +92,17 @@ class wsapoll:
         )
 
     def poll(self, timeout=None):
-        if (not IS_PRE_19041) and (timeout is None) and self.__check_maybe_affected():
-            logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.\nFor more information, see https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/")
+        with enter_or_die(self.__lock, "concurrent poll() invocation"):
+            if (not IS_PRE_19041) and (timeout is None) and self.__check_maybe_affected():
+                logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.\nFor more information, see https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/")
 
-        timeout_ms = uptruncate(timeout * 1000) if timeout is not None else -1
-        return self._poll(timeout_ms)
+            if not self.__impl_uptodate:
+                self.__update_impl()
+
+            timeout_ms = uptruncate(timeout * 1000) if timeout is not None else -1
+            return self._poll(timeout_ms)
 
     def _poll(self, timeout=-1):
-        if not self.__impl_uptodate:
-            self.__update_impl()
-
         impl = self.__impl
         impl_len = len(impl)
 
@@ -163,34 +170,39 @@ class wsapoll:
         self.__impl_uptodate = True
 
     def register(self, fileobj, eventmask=(POLLIN | POLLPRI | POLLOUT)):
-        self._registered[getfd(fileobj)] = eventmask
+        fd = getfd(fileobj)
+        with self.__lock:
+            self._registered[fd] = eventmask
 
-        self.__impl_uptodate = False
+            self.__impl_uptodate = False
 
     def unregister(self, fileobj):
         fd = getfd(fileobj)
-        try:
-            del self._registered[fd]
-        except KeyError:
-            raise KeyError(f"{fileobj!r} is not registered") from None
+        with self.__lock:
+            try:
+                del self._registered[fd]
+            except KeyError:
+                raise KeyError(f"{fileobj!r} is not registered") from None
 
-        self.__impl_uptodate = False
+            self.__impl_uptodate = False
 
     def modify(self, fileobj, eventmask):
         fd = getfd(fileobj)
-        try:
-            self._registered[fd]
-        except KeyError:
-            # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L548
-            raise OSError(ENOENT, f"{fileobj!r} is not registered") from None
-        else:
-            self._registered[fd] = eventmask
+        with self.__lock:
+            try:
+                self._registered[fd]
+            except KeyError:
+                # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L548
+                raise OSError(ENOENT, f"{fileobj!r} is not registered") from None
+            else:
+                self._registered[fd] = eventmask
 
-        self.__impl_uptodate = False
+            self.__impl_uptodate = False
 
     def _clear(self):
-        self._registered.clear()
-        self.__update_impl()
+        with self.__lock:
+            self._registered.clear()
+            self.__update_impl()
 
     def __getstate__(self):
         return self._registered

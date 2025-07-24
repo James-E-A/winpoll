@@ -1,11 +1,15 @@
+from contextlib import contextmanager
 from numbers import Real
-from typing import Mapping, Protocol, Union
+from threading import Lock
+from typing import Iterator, Mapping, Protocol, Union
 
 class _Fileobj(Protocol):
     def fileno(self) -> int: ...
 
 POLL_FLAGS_FOR_REPR: Mapping[str, int]
 
+@contextmanager
+def enter_or_die(lock: Lock) -> Iterator[Lock]: yield
 def getfd(fd: Union[_Fileobj, int]) -> int: ...
 def repr_flags(mask: int, flags: Mapping[str, int]) -> str: ...
 def smallest_multiple_atleast(base: int, minimum_value: int) -> int: ...

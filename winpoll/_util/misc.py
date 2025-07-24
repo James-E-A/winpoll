@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from math import ceil, floor
 from operator import index
 
@@ -5,6 +6,7 @@ from .select_extra import *
 
 __all__ = [
     'POLL_FLAGS_FOR_REPR',
+    'enter_or_die',
     'getfd',
     'repr_flags',
     'smallest_multiple_atleast',
@@ -24,6 +26,20 @@ POLL_FLAGS_FOR_REPR = {
     'POLLHUP': POLLHUP,
     'POLLNVAL': POLLNVAL,
 }
+
+
+@contextmanager
+def enter_or_die(lock, error_or_message):
+    if lock.acquire(blocking=False):
+        try:
+            yield lock
+        finally:
+            lock.release()
+    else:
+        if isinstance(error_or_message, BaseException) or issubclass(error_or_message, BaseException):
+            raise error_or_message
+        else:
+            raise RuntimeError(error_or_message)
 
 
 def getfd(fileobj):

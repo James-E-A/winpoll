@@ -2,6 +2,7 @@ from ctypes import Array as ctypes_Array
 from _ctypes import _CData
 from collections.abc import MutableMapping
 from numbers import Real
+from threading import Lock
 from typing import List, Optional, Protocol, Tuple, Union
 
 from ._util.wintypes_extra import WSAPOLLFD
@@ -26,6 +27,7 @@ class wsapoll:
     __impl: ctypes_Array[WSAPOLLFD]
     __impl_uptodate: bool
     __buffer: _CData
+    __lock: Lock
     def __init__(self, sizehint: int=...) -> None: ...
     def __repr__(self) -> str: ...
 
