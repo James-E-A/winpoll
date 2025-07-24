@@ -165,12 +165,16 @@ class wsapoll:
     def register(self, fileobj, eventmask=(POLLIN | POLLPRI | POLLOUT)):
         self._registered[getfd(fileobj)] = eventmask
 
+        self.__impl_uptodate = False
+
     def unregister(self, fileobj):
         fd = getfd(fileobj)
         try:
             del self._registered[fd]
         except KeyError:
             raise KeyError(f"{fileobj!r} is not registered") from None
+
+        self.__impl_uptodate = False
 
     def modify(self, fileobj, eventmask):
         fd = getfd(fileobj)
@@ -181,6 +185,8 @@ class wsapoll:
             raise OSError(ENOENT, f"{fileobj!r} is not registered") from None
         else:
             self._registered[fd] = eventmask
+
+        self.__impl_uptodate = False
 
     def _clear(self):
         self._registered.clear()
