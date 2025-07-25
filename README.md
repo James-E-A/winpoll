@@ -44,7 +44,7 @@ have no cleanup requirement (besides plain garbage collection).
 
 ```python
 import sys
-from select import DefaultSelector, SelectSelector
+from selectors import DefaultSelector, SelectSelector
 
 if (DefaultSelector is SelectSelector) and (sys.platform == 'win32') and (sys.getwindowsversion() >= (10, 0, 19041)):
     # https://github.com/python/cpython/issues/60711
