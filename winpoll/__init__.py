@@ -84,7 +84,7 @@ class wsapoll:
         self.__lock = Lock()
 
     def __repr__(self):
-        return f"<{__name__}.{self.__class__.__name__} {self._registered!r}>"
+        return f"<{__name__}.{self.__class__.__name__} _registrations={{{', '.join(f'{fd!r}: {repr_flags(eventmask, POLL_FLAGS_FOR_REPR)}' for fd, eventmask in self._registered.items())}}}>"
 
     def __check_maybe_affected(self):
         return any(
