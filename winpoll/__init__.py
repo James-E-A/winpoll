@@ -110,9 +110,6 @@ class wsapoll:
         impl = self.__impl
         impl_len = len(impl)
 
-        # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L661-L666
-        # FIXME: raise if called concurrently on the same thread
-
         # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L645-L647
         if timeout >= 0:
             timeout_deadline = monotonic_ns() // 1000 + timeout
@@ -173,33 +170,33 @@ class wsapoll:
 
         self.__impl_uptodate = True
 
-    def register(self, fileobj, eventmask=(POLLIN | POLLPRI | POLLOUT)):
-        fd = getfd(fileobj)
+    def register(self, fd, eventmask=(POLLIN | POLLPRI | POLLOUT)):
+        fd_ = getfd(fd)
         with self.__lock:
-            self._registered[fd] = eventmask
+            self._registered[fd_] = eventmask
 
             self.__impl_uptodate = False
 
-    def unregister(self, fileobj):
-        fd = getfd(fileobj)
+    def unregister(self, fd):
+        fd_ = getfd(fd)
         with self.__lock:
             try:
-                del self._registered[fd]
+                del self._registered[fd_]
             except KeyError:
-                raise KeyError(f"{fileobj!r} is not registered") from None
+                raise KeyError(f"{fd!r} is not registered") from None
 
             self.__impl_uptodate = False
 
-    def modify(self, fileobj, eventmask):
-        fd = getfd(fileobj)
+    def modify(self, fd, eventmask):
+        fd_ = getfd(fd)
         with self.__lock:
             try:
-                self._registered[fd]
+                self._registered[fd_]
             except KeyError:
                 # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L548
-                raise OSError(ENOENT, f"{fileobj!r} is not registered") from None
+                raise OSError(ENOENT, f"{fd!r} is not registered") from None
             else:
-                self._registered[fd] = eventmask
+                self._registered[fd_] = eventmask
 
             self.__impl_uptodate = False
 

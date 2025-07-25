@@ -4,12 +4,17 @@ from collections.abc import Mapping, MutableMapping
 from numbers import Real
 from selectors import _PollLikeSelector
 from threading import Lock
-from typing import ClassVar, List, Optional, Protocol, Tuple, TypeVar, Union
+from typing import ClassVar, List, NamedTuple, Optional, Protocol, Tuple, TypeVar, Union
 
 from ._util.wintypes_extra import WSAPOLLFD
 
 T = TypeVar('T')
-_SelectorKey = Tuple[Union[_Fileobj, int], int, int, T]
+
+class _SelectorKey(NamedTuple):
+    fileobj: Union[_Fileobj, int]
+    fd: int
+    events: int
+    data: T
 
 POLLERR: int
 POLLHUP: int
@@ -44,6 +49,8 @@ class wsapoll:
     def _clear(self) -> None: ...
     def __check_maybe_affected(self) -> bool: ...
     def __update_impl(self) -> None: ...
+    def __getstate__(self) -> Mapping[int, int]: ...
+    def __setstate__(self, state: Mapping[int, int]) -> None: ...
 
 class WSAPollSelector(_PollLikeSelector):
     def register(self, fileobj: Union[_Fileobj, int], events: int, data: T=None) -> _SelectorKey: ...
