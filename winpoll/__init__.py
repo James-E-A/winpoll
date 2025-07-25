@@ -220,3 +220,7 @@ class WSAPollSelector(_PollLikeSelector):
     _selector_cls = wsapoll
     _EVENT_READ = POLLIN
     _EVENT_WRITE = POLLOUT
+
+    def close(self):
+        self._selector._clear()
+        super().close()
