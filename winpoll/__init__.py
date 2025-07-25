@@ -3,6 +3,7 @@ from ctypes import windll
 from ctypes.wintypes import INT, LPVOID, ULONG
 from errno import ENOENT
 import logging
+from selectors import _PollLikeSelector
 from socket import SOCK_STREAM, socket as socket_
 import sys
 from threading import Lock
@@ -34,6 +35,7 @@ __all__ = [
     'POLLWRBAND',
     'POLLWRNORM',
     'wsapoll',
+    'WSAPollSelector',
 ]
 
 IS_PRE_19041 = sys.getwindowsversion() < (10, 0, 19041)
@@ -213,3 +215,11 @@ class wsapoll:
         self.__init__(sizehint=len(state))
         self._registered.update(state)
         self.__update_impl()
+
+
+# https://github.com/python/cpython/blob/v3.13.0/Lib/selectors.py#L412-L418
+class WSAPollSelector(_PollLikeSelector):
+    """WSAPoll-based selector."""
+    _selector_cls = wsapoll
+    _EVENT_READ = POLLIN
+    _EVENT_WRITE = POLLOUT

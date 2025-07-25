@@ -1,11 +1,15 @@
 from ctypes import Array as ctypes_Array
 from _ctypes import _CData
-from collections.abc import MutableMapping
+from collections.abc import Mapping, MutableMapping
 from numbers import Real
+from selectors import _PollLikeSelector
 from threading import Lock
-from typing import List, Optional, Protocol, Tuple, Union
+from typing import ClassVar, List, Optional, Protocol, Tuple, TypeVar, Union
 
 from ._util.wintypes_extra import WSAPOLLFD
+
+T = TypeVar('T')
+_SelectorKey = Tuple[Union[_Fileobj, int], int, int, T]
 
 POLLERR: int
 POLLHUP: int
@@ -40,3 +44,16 @@ class wsapoll:
     def _clear(self) -> None: ...
     def __check_maybe_affected(self) -> bool: ...
     def __update_impl(self) -> None: ...
+
+class WSAPollSelector(_PollLikeSelector):
+    def register(self, fileobj: Union[_Fileobj, int], events: int, data: T=None) -> _SelectorKey: ...
+    def unregister(self, fileobj: Union[_Fileobj, int]) -> _SelectorKey: ...
+    def modify(self, fileobj: Union[_Fileobj, int], events: int, data: T=None) -> _SelectorKey: ...
+    def select(self, timeout: Optional[Real]=None) -> List[Tuple[_SelectorKey, int]]: ...
+    def close(self) -> None: ...
+    def get_key(self, Union[_Fileobj, int]) -> _SelectorKey: ...
+    def get_map(self) -> Mapping[Union[_Fileobj, int], _SelectorKey]: ...
+
+    _selector_cls: ClassVar[...]  # type: ignore
+    _EVENT_READ: ClassVar[int]
+    _EVENT_WRITE: ClassVar[int]

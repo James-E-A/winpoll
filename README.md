@@ -2,12 +2,14 @@ Implementation of `select.poll` on Microsoft Windows.
 
 - Pure Python; no C extensions (uses `ctypes.windll.Ws2_32`)
 - Drop-in-compatible API
-- Clean "ponyfill"; no monkeypatching
+- Clean "ponyfill"; library does no monkeypatching
 - No dependencies (besides Windows Vista or newer)
 - Python 3.6+ compatible
 
 
 # Usage
+
+## Alternative to `select.poll`
 
 ```python
 try:
@@ -37,6 +39,17 @@ for sock, events in p.poll(timeout=3):
 
 Like `select.poll`, `winpoll.wsapoll` objects acquire no special resources, thus
 have no cleanup requirement (besides plain garbage collection).
+
+## Alternative to `selectors.PollSelector`/`selectors.DefaultSelector`
+
+```python
+import sys
+from select import DefaultSelector, SelectSelector
+
+if (DefaultSelector is SelectSelector) and (sys.platform == 'win32') and (sys.getwindowsversion() >= (10, 0, 19041)):
+    # https://github.com/python/cpython/issues/60711
+    from winpoll import WSAPollSelector as DefaultSelector
+```
 
 
 # Limitations / Bugs
