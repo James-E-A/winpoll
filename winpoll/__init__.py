@@ -1,4 +1,4 @@
-from ctypes import WinError, byref, create_string_buffer, memmove, resize, sizeof
+from ctypes import WinError, resize, sizeof
 from ctypes import windll
 from ctypes.wintypes import INT, LPVOID, ULONG
 from errno import ENOENT
