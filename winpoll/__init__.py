@@ -162,7 +162,7 @@ class wsapoll:
                 )
             )
 
-        self.__impl = impl = impl_t.from_buffer(self.__buffer)
+        self.__impl = impl = impl_t.from_buffer(buf)
 
         for slot, (fd, eventmask) in zip(impl, registered.items()):
             slot.fd = fd
