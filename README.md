@@ -12,13 +12,14 @@ Implementation of `select.poll` on Microsoft Windows.
 ## Alternative to `select.poll`
 
 ```python
+import sys
+
 try:
     from select import (
         POLLIN, POLLOUT, POLLERR, POLLHUP, POLLNVAL,
         poll
     )
-
-except ImportError:
+except (ImportError if sys.platform == "win32" else ()):
     # https://github.com/python/cpython/issues/60711
     from winpoll import (
         POLLIN, POLLOUT, POLLERR, POLLHUP, POLLNVAL,
