@@ -207,7 +207,7 @@ class wsapoll:
             self.__update_impl()
 
     def __getstate__(self):
-        return self._registered.copy()
+        return self._registered
 
     def __setstate__(self, state):
         self.__init__(sizehint=len(state))
