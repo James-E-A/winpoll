@@ -7,7 +7,7 @@ from selectors import _PollLikeSelector
 from socket import SOCK_STREAM, socket as socket_
 import sys
 from threading import Lock
-from time import monotonic_ns
+from time import monotonic_ns  # Python 3.7+
 
 from ._util.select_extra import *
 from ._util import (
@@ -93,7 +93,7 @@ class wsapoll:
                 slot.fd >= 0
                 and slot.events == _POLL_DISCONNECTION
             )
-            for slot in self.__impl()
+            for slot in self.__impl
         )
 
     def poll(self, timeout=None):

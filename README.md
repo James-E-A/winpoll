@@ -3,8 +3,8 @@ Implementation of `select.poll` on Microsoft Windows.
 - Pure Python; no C extensions (uses `ctypes.windll.Ws2_32`)
 - Drop-in-compatible API
 - Clean "ponyfill"; library does no monkeypatching
-- No dependencies (besides Windows Vista or newer)
-- Python 3.6+ compatible
+- Python 3.7+ compatible
+- No dependencies
 
 
 # Usage
@@ -70,11 +70,11 @@ for (sock, _fd, _eventmask, _data), events in s.select(3):
 
 - Does not work before Windows Vista.
 
-  * Last affected OS EOL: [April 8, 2014](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-xp-office-exchange-2003-end-of-support)
+  * Last affected OS: Windows XP ([EOL April 8, 2014](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-xp-office-exchange-2003-end-of-support); not supported by Python 3.7+ anyway.)
 
-- Outbound TCP connections don't correctly report failure-to-connect (`(POLLHUP | POLLERR | POLLWRNORM)`) before Windows 10 Version 2004 (OS build 19041).
+- Outbound TCP connections don't correctly report failure-to-connect (`(POLLHUP | POLLERR | POLLWRNORM)`) before Windows 10 version 2004 ("May 2020 Update" / "20H1" / "OS Build 19041").
 
-  * Last affected OS EOL: [May 10, 2022](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-10-1909-enterprise-education-eos)
+  * Last affected OS: Windows 10 version 1909 ([EOL May 10, 2022](https://learn.microsoft.com/en-us/lifecycle/announcements/windows-10-1909-enterprise-education-eos).)
 
 
 # Installation
