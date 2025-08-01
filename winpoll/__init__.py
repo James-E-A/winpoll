@@ -89,19 +89,19 @@ class wsapoll:
     def __check_maybe_affected(self):
         return any(
             (
-                fd >= 0
-                and eventmask == _POLL_DISCONNECTION
+                slot.fd >= 0
+                and slot.events == _POLL_DISCONNECTION
             )
-            for fd, eventmask in self._registered.items()
+            for slot in self.__impl()
         )
 
     def poll(self, timeout=None):
         with enter_or_die(self.__lock, "concurrent poll() invocation"):
-            if IS_PRE_19041 and (timeout is None) and self.__check_maybe_affected():
-                logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.\nFor more information, see https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/")
-
             if not self.__impl_uptodate:
                 self.__update_impl()
+
+                if IS_PRE_19041 and (timeout is None) and self.__check_maybe_affected():
+                    logging.warning("Outbound TCP connection failures won't be reported by wsapoll.poll() on versions of Windows prior to \"Windows 10 version 2004 (OS build 19041)\"; consider updating the operating system, using IOCP (via asyncio), or setting a finite timeout.\nFor more information, see https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/")
 
             timeout_ms = uptruncate(timeout * 1000) if timeout is not None else -1
             return self._poll(timeout_ms)
