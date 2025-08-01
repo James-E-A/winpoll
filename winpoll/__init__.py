@@ -206,6 +206,14 @@ class wsapoll:
             self._registered.clear()
             self.__update_impl()
 
+    def _selectors_close_impl(self):
+        with self.__lock:
+            # allow garbage-collection
+            del self._registered,\
+                self.__impl,\
+                self.__buffer
+            self.__impl_uptodate = False
+
     def __getstate__(self):
         return self._registered
 
@@ -223,5 +231,5 @@ class WSAPollSelector(_PollLikeSelector):
     _EVENT_WRITE = POLLOUT
 
     def close(self):
-        self._selector._clear()
+        self._selector._selectors_close_impl()
         super().close()
