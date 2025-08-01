@@ -88,13 +88,29 @@ pip install "winpoll ; sys_platform == 'win32'"
 ## `requirements.txt`
 
 ```ini
+...
 winpoll ; sys_platform == 'win32'
+```
+
+## `setup.py`
+```py
+...
+
+setup(
+    ...,
+    install_requires: [
+        ...,
+        "winpoll ; sys_platform == 'win32'"
+    ]
+)
 ```
 
 ## `pyproject.toml`
 
 ```toml
 [project]
+...
+
 dependencies = [
   ...,
   "winpoll ; sys_platform == 'win32'",
