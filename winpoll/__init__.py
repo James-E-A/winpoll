@@ -181,29 +181,26 @@ class wsapoll:
     def unregister(self, fd):
         fd_ = getfd(fd)
         with self.__lock:
-            try:
-                del self._registered[fd_]
-            except KeyError:
-                raise KeyError(f"{fd!r} is not registered") from None
+            # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L593
+            del self._registered[fd_]
 
             self.__impl_uptodate = False
 
     def modify(self, fd, eventmask):
         fd_ = getfd(fd)
         with self.__lock:
-            try:
-                self._registered[fd_]
-            except KeyError:
-                # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L548
-                raise OSError(ENOENT, f"{fd!r} is not registered") from None
-            else:
-                self._registered[fd_] = eventmask
+            if fd_ not in self._registered:
+                # https://github.com/python/cpython/blob/v3.13.0/Modules/selectmodule.c#L549
+                raise OSError(ENOENT, f"{fd!r} is not registered")
+
+            self._registered[fd_] = eventmask
 
             self.__impl_uptodate = False
 
     def _clear(self):
         with self.__lock:
             self._registered.clear()
+
             self.__update_impl()
 
     def _selectors_close_impl(self):
@@ -212,6 +209,7 @@ class wsapoll:
             del self._registered,\
                 self.__impl,\
                 self.__buffer
+
             self.__impl_uptodate = False
 
     def __getstate__(self):
@@ -220,6 +218,7 @@ class wsapoll:
     def __setstate__(self, state):
         self.__init__(sizehint=len(state))
         self._registered.update(state)
+
         self.__update_impl()
 
 
